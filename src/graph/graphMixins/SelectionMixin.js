@@ -137,7 +137,21 @@ var SelectionMixin = {
     else {
       this.selectionObj.edges[obj.id] = obj;
     }
+  },
 
+  /**
+   * Add object to the selection array.
+   *
+   * @param obj
+   * @private
+   */
+  _addToHover : function(obj) {
+    if (obj instanceof Node) {
+      this.hoverObj.nodes[obj.id] = obj;
+    }
+    else {
+      this.hoverObj.edges[obj.id] = obj;
+    }
   },
 
 
@@ -155,7 +169,6 @@ var SelectionMixin = {
       delete this.selectionObj.edges[obj.id];
     }
   },
-
 
   /**
    * Unselect all. The selectionObj is useful for this.
@@ -228,7 +241,7 @@ var SelectionMixin = {
   },
 
   /**
-   * return the number of selected nodes
+   * return the selected node
    *
    * @returns {number}
    * @private
@@ -237,6 +250,21 @@ var SelectionMixin = {
     for (var nodeId in this.selectionObj.nodes) {
       if (this.selectionObj.nodes.hasOwnProperty(nodeId)) {
         return this.selectionObj.nodes[nodeId];
+      }
+    }
+    return null;
+  },
+
+  /**
+   * return the selected edge
+   *
+   * @returns {number}
+   * @private
+   */
+  _getSelectedEdge : function() {
+    for (var edgeId in this.selectionObj.edges) {
+      if (this.selectionObj.edges.hasOwnProperty(edgeId)) {
+        return this.selectionObj.edges[edgeId];
       }
     }
     return null;
@@ -333,6 +361,20 @@ var SelectionMixin = {
     }
   },
 
+  /**
+   * select the edges connected to the node that is being selected
+   *
+   * @param {Node} node
+   * @private
+   */
+  _hoverConnectedEdges : function(node) {
+    for (var i = 0; i < node.dynamicEdges.length; i++) {
+      var edge = node.dynamicEdges[i];
+      edge.hover = true;
+      this._addToHover(edge);
+    }
+  },
+
 
   /**
    * unselect the edges connected to the node that is being selected
@@ -347,6 +389,7 @@ var SelectionMixin = {
       this._removeFromSelection(edge);
     }
   },
+
 
 
 
@@ -379,8 +422,44 @@ var SelectionMixin = {
       object.unselect();
       this._removeFromSelection(object);
     }
+
     if (doNotTrigger == false) {
       this.emit('select', this.getSelection());
+    }
+  },
+
+
+  /**
+   * This is called when someone clicks on a node. either select or deselect it.
+   * If there is an existing selection and we don't want to append to it, clear the existing selection
+   *
+   * @param {Node || Edge} object
+   * @private
+   */
+  _blurObject : function(object) {
+    if (object.hover == true) {
+      object.hover = false;
+      this.emit("blurNode",{node:object.id});
+    }
+  },
+
+  /**
+   * This is called when someone clicks on a node. either select or deselect it.
+   * If there is an existing selection and we don't want to append to it, clear the existing selection
+   *
+   * @param {Node || Edge} object
+   * @private
+   */
+  _hoverObject : function(object) {
+    if (object.hover == false) {
+      object.hover = true;
+      this._addToHover(object);
+      if (object instanceof Node) {
+        this.emit("hoverNode",{node:object.id});
+      }
+    }
+    if (object instanceof Node) {
+      this._hoverConnectedEdges(object);
     }
   },
 
@@ -394,7 +473,6 @@ var SelectionMixin = {
    * @private
    */
   _handleTouch : function(pointer) {
-
   },
 
 

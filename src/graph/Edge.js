@@ -30,10 +30,12 @@ function Edge (properties, graph, constants) {
   this.style  = constants.edges.style;
   this.title  = undefined;
   this.width  = constants.edges.width;
+  this.hoverWidth = constants.edges.hoverWidth;
   this.value  = undefined;
   this.length = constants.physics.springLength;
   this.customLength = false;
   this.selected = false;
+  this.hover = false;
   this.smooth = constants.smoothCurves;
   this.arrowScaleFactor = constants.edges.arrowScaleFactor;
 
@@ -54,11 +56,16 @@ function Edge (properties, graph, constants) {
   this.dash = util.extend({}, constants.edges.dash); // contains properties length, gap, altLength
 
   this.color       = {color:constants.edges.color.color,
-                      highlight:constants.edges.color.highlight};
+                      highlight:constants.edges.color.highlight,
+                      hover:constants.edges.color.hover};
   this.widthFixed  = false;
   this.lengthFixed = false;
 
   this.setProperties(properties, constants);
+
+  this.controlNodesEnabled = false;
+  this.controlNodes = {from:null, to:null, positions:{}};
+  this.connectedNode = null;
 }
 
 /**
@@ -92,6 +99,7 @@ Edge.prototype.setProperties = function(properties, constants) {
 
   if (properties.title !== undefined)        {this.title = properties.title;}
   if (properties.width !== undefined)        {this.width = properties.width;}
+  if (properties.hoverWidth !== undefined)   {this.hoverWidth = properties.hoverWidth;}
   if (properties.value !== undefined)        {this.value = properties.value;}
   if (properties.length !== undefined)       {this.length = properties.length;
                                               this.customLength = true;}
@@ -250,8 +258,9 @@ Edge.prototype.isOverlappingWith = function(obj) {
  */
 Edge.prototype._drawLine = function(ctx) {
   // set style
-  if (this.selected == true) {ctx.strokeStyle = this.color.highlight;}
-  else                       {ctx.strokeStyle = this.color.color;}
+  if (this.selected == true)   {ctx.strokeStyle = this.color.highlight;}
+  else if (this.hover == true) {ctx.strokeStyle = this.color.hover;}
+  else                         {ctx.strokeStyle = this.color.color;}
   ctx.lineWidth = this._getLineWidth();
 
   if (this.from != this.to) {
@@ -304,7 +313,12 @@ Edge.prototype._getLineWidth = function() {
     return Math.min(this.width * 2, this.widthMax)*this.graphScaleInv;
   }
   else {
-    return this.width*this.graphScaleInv;
+    if (this.hover == true) {
+      return Math.min(this.hoverWidth, this.widthMax)*this.graphScaleInv;
+    }
+    else {
+      return this.width*this.graphScaleInv;
+    }
   }
 };
 
@@ -381,8 +395,9 @@ Edge.prototype._label = function (ctx, text, x, y) {
  */
 Edge.prototype._drawDashLine = function(ctx) {
   // set style
-  if (this.selected == true) {ctx.strokeStyle = this.color.highlight;}
-  else                       {ctx.strokeStyle = this.color.color;}
+  if (this.selected == true)   {ctx.strokeStyle = this.color.highlight;}
+  else if (this.hover == true) {ctx.strokeStyle = this.color.hover;}
+  else                         {ctx.strokeStyle = this.color.color;}
 
   ctx.lineWidth = this._getLineWidth();
 
@@ -506,8 +521,9 @@ Edge.prototype._pointOnCircle = function (x, y, radius, percentage) {
 Edge.prototype._drawArrowCenter = function(ctx) {
   var point;
   // set style
-  if (this.selected == true) {ctx.strokeStyle = this.color.highlight; ctx.fillStyle = this.color.highlight;}
-  else                       {ctx.strokeStyle = this.color.color; ctx.fillStyle = this.color.color;}
+  if (this.selected == true)   {ctx.strokeStyle = this.color.highlight; ctx.fillStyle = this.color.highlight;}
+  else if (this.hover == true) {ctx.strokeStyle = this.color.hover;     ctx.fillStyle = this.color.hover;}
+  else                         {ctx.strokeStyle = this.color.color;     ctx.fillStyle = this.color.color;}
   ctx.lineWidth = this._getLineWidth();
 
   if (this.from != this.to) {
@@ -580,8 +596,9 @@ Edge.prototype._drawArrowCenter = function(ctx) {
  */
 Edge.prototype._drawArrow = function(ctx) {
   // set style
-  if (this.selected == true) {ctx.strokeStyle = this.color.highlight; ctx.fillStyle = this.color.highlight;}
-  else                       {ctx.strokeStyle = this.color.color;     ctx.fillStyle = this.color.color;}
+  if (this.selected == true)   {ctx.strokeStyle = this.color.highlight; ctx.fillStyle = this.color.highlight;}
+  else if (this.hover == true) {ctx.strokeStyle = this.color.hover;     ctx.fillStyle = this.color.hover;}
+  else                         {ctx.strokeStyle = this.color.color;     ctx.fillStyle = this.color.color;}
 
   ctx.lineWidth = this._getLineWidth();
 
@@ -708,44 +725,65 @@ Edge.prototype._drawArrow = function(ctx) {
  * @private
  */
 Edge.prototype._getDistanceToEdge = function (x1,y1, x2,y2, x3,y3) { // x3,y3 is the point
-  if (this.smooth == true) {
-    var minDistance = 1e9;
-    var i,t,x,y,dx,dy;
-    for (i = 0; i < 10; i++) {
-      t = 0.1*i;
-      x = Math.pow(1-t,2)*x1 + (2*t*(1 - t))*this.via.x + Math.pow(t,2)*x2;
-      y = Math.pow(1-t,2)*y1 + (2*t*(1 - t))*this.via.y + Math.pow(t,2)*y2;
-      dx = Math.abs(x3-x);
-      dy = Math.abs(y3-y);
-      minDistance = Math.min(minDistance,Math.sqrt(dx*dx + dy*dy));
+  if (this.from != this.to) {
+    if (this.smooth == true) {
+      var minDistance = 1e9;
+      var i,t,x,y,dx,dy;
+      for (i = 0; i < 10; i++) {
+        t = 0.1*i;
+        x = Math.pow(1-t,2)*x1 + (2*t*(1 - t))*this.via.x + Math.pow(t,2)*x2;
+        y = Math.pow(1-t,2)*y1 + (2*t*(1 - t))*this.via.y + Math.pow(t,2)*y2;
+        dx = Math.abs(x3-x);
+        dy = Math.abs(y3-y);
+        minDistance = Math.min(minDistance,Math.sqrt(dx*dx + dy*dy));
+      }
+      return minDistance
     }
-    return minDistance
+    else {
+      var px = x2-x1,
+          py = y2-y1,
+          something = px*px + py*py,
+          u =  ((x3 - x1) * px + (y3 - y1) * py) / something;
+
+      if (u > 1) {
+        u = 1;
+      }
+      else if (u < 0) {
+        u = 0;
+      }
+
+      var x = x1 + u * px,
+          y = y1 + u * py,
+          dx = x - x3,
+          dy = y - y3;
+
+      //# Note: If the actual distance does not matter,
+      //# if you only want to compare what this function
+      //# returns to other results of this function, you
+      //# can just return the squared distance instead
+      //# (i.e. remove the sqrt) to gain a little performance
+
+      return Math.sqrt(dx*dx + dy*dy);
+    }
   }
   else {
-    var px = x2-x1,
-        py = y2-y1,
-        something = px*px + py*py,
-        u =  ((x3 - x1) * px + (y3 - y1) * py) / something;
-
-    if (u > 1) {
-      u = 1;
+    var x, y, dx, dy;
+    var radius = this.length / 4;
+    var node = this.from;
+    if (!node.width) {
+      node.resize(ctx);
     }
-    else if (u < 0) {
-      u = 0;
+    if (node.width > node.height) {
+      x = node.x + node.width / 2;
+      y = node.y - radius;
     }
-
-    var x = x1 + u * px,
-        y = y1 + u * py,
-        dx = x - x3,
-        dy = y - y3;
-
-    //# Note: If the actual distance does not matter,
-    //# if you only want to compare what this function
-    //# returns to other results of this function, you
-    //# can just return the squared distance instead
-    //# (i.e. remove the sqrt) to gain a little performance
-
-    return Math.sqrt(dx*dx + dy*dy);
+    else {
+      x = node.x + radius;
+      y = node.y - node.height / 2;
+    }
+    dx = x - x3;
+    dy = y - y3;
+    return Math.abs(Math.sqrt(dx*dx + dy*dy) - radius);
   }
 };
 
@@ -775,3 +813,145 @@ Edge.prototype.positionBezierNode = function() {
     this.via.y = 0.5 * (this.from.y + this.to.y);
   }
 };
+
+/**
+ * This function draws the control nodes for the manipulator. In order to enable this, only set the this.controlNodesEnabled to true.
+ * @param ctx
+ */
+Edge.prototype._drawControlNodes = function(ctx) {
+  if (this.controlNodesEnabled == true) {
+    if (this.controlNodes.from === null && this.controlNodes.to === null) {
+      var nodeIdFrom = "edgeIdFrom:".concat(this.id);
+      var nodeIdTo = "edgeIdTo:".concat(this.id);
+      var constants = {
+                      nodes:{group:'', radius:8},
+                      physics:{damping:0},
+                      clustering: {maxNodeSizeIncrements: 0 ,nodeScaling: {width:0, height: 0, radius:0}}
+                      };
+      this.controlNodes.from = new Node(
+        {id:nodeIdFrom,
+          shape:'dot',
+            color:{background:'#ff4e00', border:'#3c3c3c', highlight: {background:'#07f968'}}
+        },{},{},constants);
+      this.controlNodes.to = new Node(
+        {id:nodeIdTo,
+          shape:'dot',
+          color:{background:'#ff4e00', border:'#3c3c3c', highlight: {background:'#07f968'}}
+        },{},{},constants);
+    }
+
+    if (this.controlNodes.from.selected == false && this.controlNodes.to.selected == false) {
+      this.controlNodes.positions = this.getControlNodePositions(ctx);
+      this.controlNodes.from.x = this.controlNodes.positions.from.x;
+      this.controlNodes.from.y = this.controlNodes.positions.from.y;
+      this.controlNodes.to.x = this.controlNodes.positions.to.x;
+      this.controlNodes.to.y = this.controlNodes.positions.to.y;
+    }
+
+    this.controlNodes.from.draw(ctx);
+    this.controlNodes.to.draw(ctx);
+  }
+  else {
+    this.controlNodes = {from:null, to:null, positions:{}};
+  }
+}
+
+/**
+ * Enable control nodes.
+ * @private
+ */
+Edge.prototype._enableControlNodes = function() {
+  this.controlNodesEnabled = true;
+}
+
+/**
+ * disable control nodes
+ * @private
+ */
+Edge.prototype._disableControlNodes = function() {
+  this.controlNodesEnabled = false;
+}
+
+/**
+ * This checks if one of the control nodes is selected and if so, returns the control node object. Else it returns null.
+ * @param x
+ * @param y
+ * @returns {null}
+ * @private
+ */
+Edge.prototype._getSelectedControlNode = function(x,y) {
+  var positions = this.controlNodes.positions;
+  var fromDistance = Math.sqrt(Math.pow(x - positions.from.x,2) + Math.pow(y - positions.from.y,2));
+  var toDistance =   Math.sqrt(Math.pow(x - positions.to.x  ,2) + Math.pow(y - positions.to.y  ,2));
+
+  if (fromDistance < 15) {
+    this.connectedNode = this.from;
+    this.from = this.controlNodes.from;
+    return this.controlNodes.from;
+  }
+  else if (toDistance < 15) {
+    this.connectedNode = this.to;
+    this.to = this.controlNodes.to;
+    return this.controlNodes.to;
+  }
+  else {
+    return null;
+  }
+}
+
+
+/**
+ * this resets the control nodes to their original position.
+ * @private
+ */
+Edge.prototype._restoreControlNodes = function() {
+  if (this.controlNodes.from.selected == true) {
+    this.from = this.connectedNode;
+    this.connectedNode = null;
+    this.controlNodes.from.unselect();
+  }
+  if (this.controlNodes.to.selected == true) {
+    this.to = this.connectedNode;
+    this.connectedNode = null;
+    this.controlNodes.to.unselect();
+  }
+}
+
+/**
+ * this calculates the position of the control nodes on the edges of the parent nodes.
+ *
+ * @param ctx
+ * @returns {{from: {x: number, y: number}, to: {x: *, y: *}}}
+ */
+Edge.prototype.getControlNodePositions = function(ctx) {
+  var angle = Math.atan2((this.to.y - this.from.y), (this.to.x - this.from.x));
+  var dx = (this.to.x - this.from.x);
+  var dy = (this.to.y - this.from.y);
+  var edgeSegmentLength = Math.sqrt(dx * dx + dy * dy);
+  var fromBorderDist = this.from.distanceToBorder(ctx, angle + Math.PI);
+  var fromBorderPoint = (edgeSegmentLength - fromBorderDist) / edgeSegmentLength;
+  var xFrom = (fromBorderPoint) * this.from.x + (1 - fromBorderPoint) * this.to.x;
+  var yFrom = (fromBorderPoint) * this.from.y + (1 - fromBorderPoint) * this.to.y;
+
+
+  if (this.smooth == true) {
+    angle = Math.atan2((this.to.y - this.via.y), (this.to.x - this.via.x));
+    dx = (this.to.x - this.via.x);
+    dy = (this.to.y - this.via.y);
+    edgeSegmentLength = Math.sqrt(dx * dx + dy * dy);
+  }
+  var toBorderDist = this.to.distanceToBorder(ctx, angle);
+  var toBorderPoint = (edgeSegmentLength - toBorderDist) / edgeSegmentLength;
+
+  var xTo,yTo;
+  if (this.smooth == true) {
+    xTo = (1 - toBorderPoint) * this.via.x + toBorderPoint * this.to.x;
+    yTo = (1 - toBorderPoint) * this.via.y + toBorderPoint * this.to.y;
+  }
+  else {
+    xTo = (1 - toBorderPoint) * this.from.x + toBorderPoint * this.to.x;
+    yTo = (1 - toBorderPoint) * this.from.y + toBorderPoint * this.to.y;
+  }
+
+  return {from:{x:xFrom,y:yFrom},to:{x:xTo,y:yTo}};
+}
