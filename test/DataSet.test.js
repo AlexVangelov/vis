@@ -1,7 +1,9 @@
 var assert = require('assert');
-var moment = require('moment');
-var DataSet = require('../lib/DataSet');
-var Queue = require('../lib/Queue');
+var vis = require('../dist/vis');
+var moment = vis.moment;
+var DataSet = vis.DataSet;
+var Queue = vis.Queue;
+// TODO: test the source code immediately, but this is ES6
 
 var now = new Date();
 
@@ -26,6 +28,7 @@ describe('DataSet', function () {
     ]);
 
     var items = data.get();
+    assert.equal(data.length, 4);
     assert.equal(items.length, 4);
     items.forEach(function (item) {
       assert.ok(item.start instanceof Date);
@@ -76,6 +79,7 @@ describe('DataSet', function () {
       {id: 3},
       {id: 4}
     ]);
+    assert.equal(data.length, 3);
 
     // add an item
     data.add({id: 5, content: 'Item 5', start: now.valueOf()});
@@ -87,12 +91,17 @@ describe('DataSet', function () {
       {id: 4},
       {id: 5}
     ]);
+    assert.equal(data.length, 4);
 
     // update an item
     data.update({id: 5, content: 'changed!'});                         // update item (extend existing fields)
+    assert.equal(data.length, 4);
     data.remove(3);                                                    // remove existing item
+    assert.equal(data.length, 3);
     data.add({id: 3, other: 'bla'});                                   // add new item
+    assert.equal(data.length, 4);
     data.update({id: 6, content: 'created!', start: now.valueOf()});   // this item is not yet existing, create it
+    assert.equal(data.length, 5);
     assert.deepEqual(data.get().sort(sort), [
       {id: 1, content: 'Item 1', start: now},
       {id: 3, other: 'bla'},
@@ -100,8 +109,10 @@ describe('DataSet', function () {
       {id: 5, content: 'changed!', start: now},
       {id: 6, content: 'created!', start: now}
     ]);
+    assert.equal(data.length, 5);
 
     data.clear();
+    assert.equal(data.length, 0);
 
     assert.equal(data.get().length, 0);
 

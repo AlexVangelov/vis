@@ -28,6 +28,10 @@ Install via bower:
 
     bower install vis
 
+Link via cdnjs:
+
+    http://cdnjs.com
+
 Or download the library from the github project:
 [https://github.com/almende/vis.git](https://github.com/almende/vis.git).
 
@@ -152,7 +156,17 @@ The folder `dist` contains bundled versions of vis.js for direct use in the brow
 
 The source code of vis.js consists of commonjs modules, which makes it possible to create custom bundles using tools like [Browserify](http://browserify.org/) or [Webpack](http://webpack.github.io/). This can be bundling just one visualization like the Timeline, or bundling vis.js as part of your own browserified web application. 
 
-*Note that hammer.js version 1 is required (v1.0.6-v1.1.3), version 2 is not yet supported.*
+*Note that hammer.js version 2 is required as of v4.*
+
+
+#### Prerequisites
+
+Before you can do a build:
+
+- Install node.js, npm, browserify, and uglify-js on your system.
+- Download or clone the vis.js project.
+- Install the dependencies of vis.js by running `npm install` in the root of the project.
+
 
 #### Example 1: Bundle a single visualization
 
@@ -165,7 +179,7 @@ exports.Timeline = require('./lib/timeline/Timeline');
 
 Install browserify globally via `[sudo] npm install -g browserify`, then create a custom bundle like:
 
-    browserify custom.js -o vis-custom.js -s vis
+    browserify custom.js -t babelify -o vis-custom.js -s vis
 
 This will generate a custom bundle *vis-custom.js*, which exposes the namespace `vis` containing only `DataSet` and `Timeline`. The generated bundle can be minified with uglifyjs (installed globally with `[sudo] npm install -g uglify-js`):
 
@@ -190,7 +204,7 @@ The custom bundle can now be loaded like:
 
 The default bundle `vis.js` is standalone and includes external dependencies such as hammer.js and moment.js. When these libraries are already loaded by the application, vis.js does not need to include these dependencies itself too. To build a custom bundle of vis.js excluding moment.js and hammer.js, run browserify in the root of the project:
 
-    browserify index.js -o vis-custom.js -s vis -x moment -x hammerjs
+    browserify index.js -t babelify -o vis-custom.js -s vis -x moment -x hammerjs
     
 This will generate a custom bundle *vis-custom.js*, which exposes the namespace `vis`, and has moment and hammerjs excluded. The generated bundle can be minified with uglifyjs:
 
@@ -244,7 +258,7 @@ Install the application dependencies via npm:
 
 The application can be bundled and minified:
 
-    browserify app.js -o app-bundle.js
+    browserify app.js -o app-bundle.js -t babelify 
     uglifyjs app-bundle.js -o app-bundle.min.js
 
 And loaded into a webpage:
@@ -277,16 +291,16 @@ Then run the tests:
 
 ## License
 
-Copyright (C) 2010-2014 Almende B.V.
+Copyright (C) 2010-2015 Almende B.V.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Vis.js is dual licensed under both
 
-   http://www.apache.org/licenses/LICENSE-2.0
+  * The Apache 2.0 License
+    http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+and
+
+  * The MIT License
+    http://opensource.org/licenses/MIT
+
+Vis.js may be distributed under either license.

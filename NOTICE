@@ -1,5 +1,5 @@
 Vis.js
-Copyright 2010-2014 Almende B.V.
+Copyright 2010-2015 Almende B.V.
 
 Vis.js is dual licensed under both
 
@@ -28,6 +28,6 @@ Vis.js uses and redistributes the following third-party libraries:
   http://momentjs.com/
   The MIT License
 
-- mousetrap
-  http://craig.is/killing/mice
-  The Apache 2.0 License
+- keycharm
+  https://github.com/AlexDM0/keycharm
+  The MIT License

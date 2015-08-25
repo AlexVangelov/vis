@@ -34,7 +34,6 @@ var bannerPlugin = new webpack.BannerPlugin(createBanner(), {
   raw: true
 });
 
-// TODO: the moment.js language files should be excluded by default (they are quite big)
 var webpackConfig = {
   entry: ENTRY,
   output: {
@@ -44,12 +43,18 @@ var webpackConfig = {
     filename: VIS_JS,
     sourcePrefix: '  '
   },
-  // exclude requires of moment.js language files
   module: {
+    loaders: [
+      { test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader'}
+    ],
+
+    // exclude requires of moment.js language files
     wrappedContextRegExp: /$^/
   },
   plugins: [ bannerPlugin ],
   cache: true
+  //debug: true,
+  //bail: true
 };
 
 var uglifyConfig = {
@@ -72,7 +77,20 @@ gulp.task('bundle-js', ['clean'], function (cb) {
   bannerPlugin.banner = createBanner();
 
   compiler.run(function (err, stats) {
-    if (err) gutil.log(err);
+    if (err) {
+      gutil.log(err.toString());
+    }
+
+    if (stats && stats.compilation && stats.compilation.errors) {
+      // output soft errors
+      stats.compilation.errors.forEach(function (err) {
+        gutil.log(err.toString());
+      });
+
+      if (err || stats.compilation.errors.length > 0) {
+        gutil.beep(); // TODO: this does not work on my system
+      }
+    }
     cb();
   });
 });
@@ -81,6 +99,8 @@ gulp.task('bundle-js', ['clean'], function (cb) {
 gulp.task('bundle-css', ['clean'], function () {
   var files = [
     './lib/shared/activator.css',
+    './lib/shared/bootstrap.css',
+
     './lib/timeline/component/css/timeline.css',
     './lib/timeline/component/css/panel.css',
     './lib/timeline/component/css/labelset.css',
@@ -95,7 +115,10 @@ gulp.task('bundle-css', ['clean'], function () {
     './lib/timeline/component/css/pathStyles.css',
 
     './lib/network/css/network-manipulation.css',
-    './lib/network/css/network-navigation.css'
+    './lib/network/css/network-navigation.css',
+    './lib/network/css/network-tooltip.css',
+    './lib/network/css/network-configuration.css',
+    './lib/network/css/network-colorpicker.css'
   ];
 
   return gulp.src(files)
@@ -121,7 +144,10 @@ gulp.task('copy', ['clean'], function () {
 gulp.task('minify', ['bundle-js'], function (cb) {
   var result = uglify.minify([DIST + '/' + VIS_JS], uglifyConfig);
 
-  fs.writeFileSync(DIST + '/' + VIS_MIN_JS, result.code);
+  // note: we add a newline '\n' to the end of the minified file to prevent
+  //       any issues when concatenating the file downstream (the file ends
+  //       with a comment).
+  fs.writeFileSync(DIST + '/' + VIS_MIN_JS, result.code + '\n');
   fs.writeFileSync(DIST + '/' + VIS_MAP, result.map);
 
   cb();
